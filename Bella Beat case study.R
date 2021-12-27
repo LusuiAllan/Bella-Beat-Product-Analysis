@@ -1,0 +1,145 @@
+library(tidyverse)#For data cleaning and organizing
+library(ggplot2)#For plotting
+library(knitr)#For use with rmarkdown oin presentation
+library(lubridate)#For sdate use and conversion
+library(readr)#For importing data
+library(dplyr)#For making manipulations
+library(rmarkdown)#For creating a sharable document
+library(janitor)#For easing data cleaning
+library(skimr)#For easy summary
+
+#IMPORT THE DATA
+#used only two data sets that covered 24 hours(initially)
+#added weight data set to get context
+daily_activity <- read_csv("C:\\Users\\Allan\\OneDrive - CM Advocates, LLP\\Documents\\R\\Fitabase Data 4.12.16-5.12.16\\dailyActivity_merged.csv")
+daily_sleep <- read_csv("C:\\Users\\Allan\\OneDrive - CM Advocates, LLP\\Documents\\R\\Fitabase Data 4.12.16-5.12.16\\sleepDay_merged.csv")
+weight_log <- read_csv("C:\\Users\\Allan\\OneDrive - CM Advocates, LLP\\Documents\\R\\Fitabase Data 4.12.16-5.12.16\\weightLogInfo_merged.csv")
+#PREVIEW THE DATA
+head(daily_activity)
+head(daily_sleep)
+head(weight_log)
+
+#checkout structure of the data
+str(daily_activity)
+str(daily_sleep)
+str(weight_log)
+view(weight_log)
+
+#CHECK FOR ANY DUPLICATES AND MISSING VALUES
+#unique users check
+n_distinct(daily_activity$Id)
+n_distinct(daily_sleep$Id)
+n_distinct(weight_log)
+#check for any na values
+sum(is.na(daily_activity))
+sum(is.na(daily_sleep))
+sum(is.na(weight_log))#65 na.for the fat column
+#check for duplicates
+sum(duplicated(daily_activity))
+sum(duplicated(daily_sleep))
+sum(duplicated(weight_log))
+#Conclusuion:there are no missing values in the data set but there are duplicated values in the sleep data set
+
+#remove duplicates
+daily_sleep_clean <- daily_sleep%>%
+  distinct()%>%
+  drop_na()
+n_distinct(daily_sleep_clean)
+n_distinct(daily_activity)
+#dataset 2 cleaned
+
+weight_log_clean <- weight_log%>%
+  distinct()%>%
+  select(-Fat)
+View(weight_log_clean)
+#dataset 3 cleaned
+
+#Cleaning dataset 1
+clean_names(daily_activity)
+clean_names(daily_sleep_clean)
+
+# Change the datatype of the data column, convert format to yyyy-mm-dd and rename it "date"
+#dataset 1
+daily_activity <- daily_activity %>%
+  rename(Date = ActivityDate) %>%
+  mutate(Date = as_date(Date, format = "%m/%d/%Y"))
+
+#dataset 2
+daily_sleep_clean <- daily_sleep_clean %>%
+  rename(Date = SleepDay) %>%
+  mutate(Date = as_date(Date,format ="%m/%d/%Y %I:%M:%S %p" , tz=Sys.timezone()))
+
+#dataset 3
+weight_log_clean <- weight_log_clean %>%
+  mutate(Date = as_date(Date,format ="%m/%d/%Y %I:%M:%S %p" , tz=Sys.timezone()))
+#confirmation
+head(daily_activity)
+head(daily_sleep_clean)
+head(weight_log_clean)
+
+#ANALYSIS
+daily_activity%>%
+  select(TotalSteps,TotalDistance,SedentaryMinutes,LightlyActiveMinutes,
+         FairlyActiveMinutes,VeryActiveMinutes,Calories)%>%
+  summary()
+#NOTABLE STATISTICS
+#average daily steps-7,638 < recommended 10,000(bad)
+#average distance covered daily-5.49 miles
+#Sedentary Minutes - 991.2 - can cause health problems(3/4 a day)
+#Lightly Active Minutes - 192.8
+#Fairly ightly Active Minutes- 13.56
+#Very Active Minutes - 21.6 > recommended 9.7 mins(good)
+#Calories - 2304-(average person burns 1800 a day...to lose weight we need 3500 a day)
+#On tarck to lose weight but generally slower
+
+daily_sleep_clean%>%
+  select(TotalSleepRecords,TotalMinutesAsleep,TotalTimeInBed)%>%
+  summary()
+#NOTABLE STATISTICS
+#AVG Total Minutes Asleep - 419.2(6.986667 hours)(good-recommended 6-8 hrs)
+#AVG Total Time In Bed - 458.5(7.641667hours)
+#According to Health Central, people should not spend more than 1 hour in bed awake.
+#This is to prevent a mental link being formed between being awake and being in bed, which can lead to insomnia.
+
+weight_log_clean%>%
+  select(WeightKg,BMI)%>%
+  summary()
+
+#NOTABLE STATISTICS
+#AVG BMI - 25.19(overweight)...does not generally indicate body fatness
+
+#SHARE PHASE
+#DAILY ACTIVITY
+summary(daily_activity)
+ggplot(daily_activity, aes(x=TotalSteps, y =SedentaryMinutes,color=Calories))+
+  geom_point()+geom_smooth(method = lm)+
+  labs(title= "Total steps vs sedentary minutes")+
+  annotate("text",x=22000,y=350,label="negative correlation", color="red",fontface="bold")
+
+#Calories vs very active minutes
+ggplot(daily_activity, aes(x=VeryActiveMinutes, y =Calories,color=Calories))+
+  geom_point()+geom_smooth(method = lm)+
+  labs(title= "Very active minutes vs Calories")+
+  annotate("text",x=120,y=1000,label="positive correlation", color="green",fontface="bold")
+
+#Steps vs Calories
+ggplot(daily_activity, aes(x=TotalSteps, y =Calories,color=Calories))+
+  geom_point()+geom_smooth(method = lm)+
+  labs(title= "Steps vs Calories")+
+  annotate("text",x=30000,y=1000,label="positive correlation", color="green",fontface="bold")
+
+#DAILY SLEEP
+#Total Minutes Asleep vs TotalTime In Bed
+ggplot(daily_sleep_clean, aes(x =TotalMinutesAsleep, y =TotalTimeInBed,))+
+  geom_point()+geom_smooth(method = lm)+
+  labs(title= "Total Minutes Asleep vs TotalTime In Bed")+
+  annotate("text",x=500,y=230,label="positive correlation", color="green",fontface="bold")
+
+#WEIGHT LOG
+ggplot(weight_log_clean, aes(x=WeightKg, y =BMI))+
+  geom_point()+geom_smooth(method = lm)+
+  labs(title = "Weight vs BMI")+
+  annotate("text",x=70,y=38,label="positive correlation", color="green",fontface="bold")
+
+
+  
